@@ -1,0 +1,71 @@
+name: Build DashTube APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  build:
+    name: Build DashTube APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # App name (DashTube) and package suffix come from gradle.properties.
+      # The signing key is generated deterministically by settings.gradle, so every
+      # build is signed with the same key and installs over the previous one.
+      - name: Build APK
+        env:
+          NO_GS: true
+        run: |
+          ./gradlew fermata:packageAutoReleaseUniversalApk -PABI=arm64-v8a
+          mkdir -p dist
+          cp fermata/build/outputs/apk_from_bundle/autoRelease/*.apk dist/DashTube.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DashTube-apk
+          path: dist/DashTube.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="build-${{ github.run_number }}"
+          gh release create "$tag" dist/DashTube.apk \
+            --title "DashTube build ${{ github.run_number }}" \
+            --notes "YouTube-only build of Fermata Auto (GPL-3.0). Source is in this repository."

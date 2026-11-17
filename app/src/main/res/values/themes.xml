@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="dashtube_red">#FFFF0033</color>
+    <color name="dashtube_rail">#FF121212</color>
+
+    <style name="Theme.DashTube" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:colorPrimary">@color/dashtube_red</item>
+        <item name="android:colorAccent">@color/dashtube_red</item>
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+    </style>
+</resources>

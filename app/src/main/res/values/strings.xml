@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DashTube</string>
+    <string name="back">Back</string>
+    <string name="home">YouTube home</string>
+    <string name="reload">Reload</string>
+    <string name="youtube_only">DashTube only opens YouTube</string>
+</resources>

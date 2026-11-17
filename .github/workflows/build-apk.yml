@@ -2,7 +2,7 @@ name: Build DashTube APK
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -11,10 +11,6 @@ concurrency:
 
 permissions:
   contents: write
-
-env:
-  JAVA_VERSION: '17'
-  JAVA_DISTRIBUTION: 'temurin'
 
 jobs:
   build:
@@ -25,41 +21,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: '21'
+          distribution: 'temurin'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      # App name (DashTube) and package suffix come from gradle.properties.
-      # The signing key is generated deterministically by settings.gradle, so every
-      # build is signed with the same key and installs over the previous one.
       - name: Build APK
-        env:
-          NO_GS: true
         run: |
-          ./gradlew fermata:packageAutoReleaseUniversalApk -PABI=arm64-v8a
+          set -o pipefail
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease --stacktrace 2>&1 | tee build.log
           mkdir -p dist
-          cp fermata/build/outputs/apk_from_bundle/autoRelease/*.apk dist/DashTube.apk
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: DashTube-apk
-          path: dist/DashTube.apk
-          retention-days: 30
-          if-no-files-found: error
+          cp app/build/outputs/apk/release/app-release.apk dist/DashTube.apk
 
       - name: Publish release
         env:
@@ -68,4 +48,16 @@ jobs:
           tag="build-${{ github.run_number }}"
           gh release create "$tag" dist/DashTube.apk \
             --title "DashTube build ${{ github.run_number }}" \
-            --notes "YouTube-only build of Fermata Auto (GPL-3.0). Source is in this repository."
+            --notes "YouTube-only Android Auto app, based on AABrowser (GPL-3.0). Needs Android 15 or newer. Source is in this repository."
+
+      # Public copy of the build log when a build fails, so it can be read without signing in.
+      - name: Publish build log on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -f build.log ] || echo "no build log" > build.log
+          tag="build-log-${{ github.run_number }}"
+          gh release create "$tag" build.log --prerelease \
+            --title "Failed build log ${{ github.run_number }}" \
+            --notes "Build failed; log attached."
